@@ -33,12 +33,18 @@ export const validateIdempotency = async (idempotencyKey, res) => {
 
 export const createTransaction = async (fromAccount, toAccount, amount, idempotencyKey, res) => {
     const session = await transactionModel.startSession();
-    session.startTransaction();
+    let newTransaction;
+
     try {
-        const [newTransaction] = await transactionModel.create(
-            [{ fromAccount, toAccount, amount, idempotencyKey, status: "PENDING" }],
-            { session },
-        );
+        newTransaction = await transactionModel.create({
+            fromAccount,
+            toAccount,
+            amount,
+            idempotencyKey,
+            status: "PENDING",
+        });
+
+        session.startTransaction();
 
         //  ------------------------ Creating Ledger Entries ------------------------
         await ledgerModel.create(
@@ -52,18 +58,29 @@ export const createTransaction = async (fromAccount, toAccount, amount, idempote
         );
 
         //  ------------------------ Updating Transaction Status ------------------------
-        newTransaction.status = "COMPLETED";
-        await newTransaction.save({ session });
+        await transactionModel.updateOne(
+            { _id: newTransaction._id },
+            { status: "COMPLETED" },
+            { session },
+        );
 
         await session.commitTransaction();
-        await session.endSession();
-
-        return { success: true, transaction: newTransaction };
+        const completedTransaction = await transactionModel.findById(newTransaction._id);
+        
+        return { success: true, transaction: completedTransaction || newTransaction };
     } catch (error) {
         console.error("Error processing transaction:", error);
-        await session.abortTransaction();
-        await session.endSession();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+
+        if (newTransaction?._id) {
+            await transactionModel.findByIdAndUpdate(newTransaction._id, { status: "FAILED" });
+        }
+
         throw error;
+    } finally {
+        await session.endSession();
     }
 }
 

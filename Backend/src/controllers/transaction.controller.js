@@ -4,44 +4,39 @@ import { createTransaction, sendAppropriateEmails, validateIdempotency } from ".
 
 // /api/transaction/get-balance
 export const getBalance = async (req, res) => {
-    const userId = req.user;
+    const { accountId } = req.body;
+    const user = req.user;
 
-    const accounts = await accountModel.find({ user: userId });
-    if (!accounts || accounts.length === 0) {
-        return res.status(404).json({ message: "No accounts found for the user." });
+    const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
+    
+    if (!account || account.length === 0) {
+        return res.status(404).json({ message: "Account not found!" });
     }
-
-    const accountsWithBalances = await Promise.all(
-        accounts.map(async (account) => ({
-            accountId: account._id,
-            currency: account.currency,
-            status: account.status,
-            balance: await account.getBalance(),
-        }))
-    );
-
-    return res.status(200).json({ 
-        message: "Balances retrieved successfully.",
-        accounts: accountsWithBalances 
-    });
+    
+    try {
+        const balance = await account[0].getBalance();
+        res.status(200).json({ balance: balance });
+    } catch (error) {
+        console.error("Error fetching balance:", error);
+        return res.status(500).json({ message: "An error occurred while fetching the balance." });
+    }
 }
 
 // /api/transaction/transfer
 export const transfer = async (req, res) => {
-    const { toAccount, amount, idempotencyKey } = req.body;
+    const {fromAccount, toAccount, amount, idempotencyKey } = req.body;
     const fromUser = req.user;
 
     //  ------------------------ Validating Accounts ------------------------
-    if (!toAccount || !amount || !idempotencyKey) {
+    if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
         return res.status(400).json({
             message:
-                "toAccount, amount, and idempotencyKey are required!",
+                "fromAccount, toAccount, amount, and idempotencyKey are required!",
         });
     }
 
     
-    const fromAcc = await accountModel.findOne({ user: fromUser._id });
-    console.log(fromAcc);
+    const fromAcc = await accountModel.findById(fromAccount);
     const toAcc = await accountModel.findById(toAccount);
 
     if (!fromAcc || !toAcc) {
@@ -76,7 +71,7 @@ export const transfer = async (req, res) => {
 
     //  ------------------------ Creating Transaction ------------------------
     try {
-        const result = await createTransaction(fromAcc._id, toAccount, amount, idempotencyKey, res);
+        const result = await createTransaction(fromAccount, toAccount, amount, idempotencyKey, res);
         sendAppropriateEmails(true, fromUser.email, fromUser.name, toUser.email, toUser.name, amount);
         return res.status(201).json({
             message: "Transaction completed successfully.",
