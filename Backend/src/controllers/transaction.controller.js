@@ -1,4 +1,5 @@
 import accountModel from "../models/account.model.js";
+import transactionModel from "../models/transaction.model.js";
 import userModel from "../models/user.model.js";
 import { createTransaction, sendAppropriateEmails, validateIdempotency } from "../utils/transaction.utils.js";
 
@@ -144,5 +145,24 @@ export const deposit = async (req, res) => {
         return res.status(500).json({
             message: "An error occurred while processing the initial transaction.",
         });
+    }
+}
+
+// /api/transaction/transaction-history
+export const getTransactionHistory = async (req, res) => {
+    const { accountId } = req.body;
+    const user = req.user;
+    
+    const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
+    if (!account || account.length === 0) {
+        return res.status(404).json({ message: "Account not found!" });
+    }
+
+    try {
+        const transactions = await transactionModel.find({ $or: [{ fromAccount: accountId }, { toAccount: accountId }] }).sort({ createdAt: -1 });
+        res.status(200).json({ transactions: transactions });
+    } catch (error) {
+        console.error("Error fetching transaction history:", error);
+        return res.status(500).json({ message: "An error occurred while fetching the transaction history." });
     }
 }
