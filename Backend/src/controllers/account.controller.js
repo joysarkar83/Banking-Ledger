@@ -17,3 +17,16 @@ export const create = async (req, res) => {
 
     return res.status(201).json({ message: "Account created successfully.", account: newAccount });
 };
+
+// /api/account/allAccounts
+export const getAllAccounts = async (req, res) => {
+    const userId = req.user?._id;
+
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized access, user not found." });
+    }
+
+    const accounts = await accountModel.find({ user: userId });
+
+    return res.status(200).json({ accounts });
+};

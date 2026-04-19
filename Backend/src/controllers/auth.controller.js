@@ -37,21 +37,21 @@ export const register = async (req, res) => {
     });
 
     res.status(201).json({ message: "User registered successfully!", user: { email, name, mobileNo } });
-    
+
     await sendRegistrationEmail(user.email, user.name);
 }
 
 // /api/auth/login
 export const login = async (req, res) => {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required!" });
     }
 
     const user = await userModel.findOne({ email }).select("+passwordHash");
 
-    if(!user){
+    if (!user) {
         return res.status(400).json({ message: "Invalid email or password!" });
     }
 
@@ -75,7 +75,7 @@ export const login = async (req, res) => {
 // /api/auth/logout
 export const logout = async (req, res) => {
     const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
-    
+
     if (!token) {
         return res.status(400).json({ message: "No token provided!" });
     }
@@ -90,4 +90,73 @@ export const logout = async (req, res) => {
 
 
     res.status(200).json({ message: "Logout successful!" });
+}
+
+// /api/auth/me
+export const getCurrentUser = async (req, res) => {
+    const userId = req.user._id;
+
+    try {
+        const user = await userModel.findById(userId).select("-passwordHash");
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+        res.status(200).json({ user });
+    } catch (error) {
+        console.error("Error fetching current user:", error);
+        res.status(500).json({ message: "Internal server error!" });
+    }
+}
+
+// /api/auth/edit-profile
+export const editProfile = async (req, res) => {
+    const userId = req.user._id;
+    const { name, mobileNo, email, oldPassword, newPassword} = req.body;
+
+    if (!name || !mobileNo || !email || !oldPassword) {
+        return res.status(400).json({ message: "Name, email, mobile number, and old password is required!" });
+    }
+
+    try {
+        const user = await userModel.findById(userId).select("+passwordHash");
+
+        const passwordMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+        if (!passwordMatch) {
+            return res.status(400).json({ message: "Incorrect password!" });
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        if (email !== user.email) {
+            const existingEmailUser = await userModel.findOne({ email });
+            if (existingEmailUser) {
+                return res.status(400).json({ message: "Email already in use!" });
+            }
+            user.email = email;
+        }
+
+        if (mobileNo !== user.mobileNo) {
+            const existingMobileUser = await userModel.findOne({ mobileNo });
+            if (existingMobileUser) {
+                return res.status(400).json({ message: "Mobile number already in use!" });
+            }
+            user.mobileNo = mobileNo;
+        }
+
+        if (name !== user.name) {
+            user.name = name;
+        }
+
+        if (newPassword) {
+            user.passwordHash = await bcrypt.hash(newPassword, 12);
+        }
+
+        await user.save();
+        res.status(200).json({ message: "Profile updated successfully!" });
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Internal server error!" });
+    }
 }

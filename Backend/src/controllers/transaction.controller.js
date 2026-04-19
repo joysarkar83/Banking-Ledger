@@ -9,11 +9,11 @@ export const getBalance = async (req, res) => {
     const user = req.user;
 
     const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
-    
+
     if (!account || account.length === 0) {
         return res.status(404).json({ message: "Account not found!" });
     }
-    
+
     try {
         const balance = await account[0].getBalance();
         res.status(200).json({ balance: balance });
@@ -25,7 +25,7 @@ export const getBalance = async (req, res) => {
 
 // /api/transaction/transfer
 export const transfer = async (req, res) => {
-    const {fromAccount, toAccount, amount, idempotencyKey } = req.body;
+    const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
     const fromUser = req.user;
 
     //  ------------------------ Validating Accounts ------------------------
@@ -36,7 +36,7 @@ export const transfer = async (req, res) => {
         });
     }
 
-    
+
     const fromAcc = await accountModel.findById(fromAccount);
     const toAcc = await accountModel.findById(toAccount);
 
@@ -72,15 +72,11 @@ export const transfer = async (req, res) => {
 
     //  ------------------------ Creating Transaction ------------------------
     try {
-        const result = await createTransaction(fromAccount, toAccount, amount, idempotencyKey, res);
-        sendAppropriateEmails(true, fromUser.email, fromUser.name, toUser.email, toUser.name, amount);
-        return res.status(201).json({
-            message: "Transaction completed successfully.",
-            transaction: result.transaction,
-        });
+        const result = await createTransaction(fromAccount, toAccount, amount, idempotencyKey);
+        sendAppropriateEmails(result.success, fromUser.email, fromUser.name, toUser.email, toUser.name, amount, result.transaction._id);
+        return res.status(201).json({message: "Transaction completed."});
     } catch (error) {
         console.error("Error processing transaction:", error);
-        sendAppropriateEmails(false, fromUser.email, fromUser.name, toUser.email, toUser.name, amount);
         return res.status(500).json({
             message: "An error occurred while processing the transaction.",
         });
@@ -133,15 +129,11 @@ export const deposit = async (req, res) => {
 
     //  ------------------------ Creating Initial Transaction ------------------------
     try {
-        const result = await createTransaction(systemAcc._id, toAccount, amount, idempotencyKey, res);
-        sendAppropriateEmails(true, systemUser.email, systemUser.name, toUser.email, toUser.name, amount);
-        return res.status(201).json({
-            message: "Initial transaction completed successfully.",
-            transaction: result.transaction,
-        });
+        const result = await createTransaction(systemAcc._id, toAccount, amount, idempotencyKey);
+        sendAppropriateEmails(result.success, systemUser.email, systemUser.name, toUser.email, toUser.name, amount, result.transaction._id);
+        return res.status(201).json({ message: "Amount deposited successfully." });
     } catch (error) {
         console.error("Error processing initial transaction:", error);
-        sendAppropriateEmails(false, systemUser.email, systemUser.name, toUser.email, toUser.name, amount);
         return res.status(500).json({
             message: "An error occurred while processing the initial transaction.",
         });
@@ -152,7 +144,7 @@ export const deposit = async (req, res) => {
 export const getTransactionHistory = async (req, res) => {
     const { accountId } = req.body;
     const user = req.user;
-    
+
     const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
     if (!account || account.length === 0) {
         return res.status(404).json({ message: "Account not found!" });

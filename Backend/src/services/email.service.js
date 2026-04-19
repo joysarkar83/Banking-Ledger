@@ -34,7 +34,6 @@ const sendEmailLocal = async (to, subject, text, html) => {
 	try {
 		const sentInfo = await transporter.sendMail(mailOptions);
 		console.log("Email sent successfully:", sentInfo.messageId);
-		console.log("Preview URL:", nodeMailer.getTestMessageUrl(sentInfo));
 		return sentInfo;
 	} catch (error) {
 		console.error("Error sending email:", error);
@@ -58,7 +57,7 @@ export const sendTransactionSuccessEmail = async (userEmail, userName, amount, t
 	const text = `Dear ${userName},\n\nA ${transactionType} of amount $${amount} has been processed on your account.\n\nTransaction ID: ${transactionId}\n\nBest regards,\nThe Banking-Ledger Team`;
 	const html = `
         <p>Dear ${userName},</p>
-        <p>A ${transactionType} of amount $${amount} has been processed on your account.</p>
+        <p>A ${transactionType} of amount ₹${amount} has been processed on your account.</p>
         <p>Transaction ID: ${transactionId}</p>
         <p>Best regards,<br>The Banking-Ledger Team</p>
     `;
@@ -70,7 +69,7 @@ export const sendTransactionFailureEmail = async (userEmail, userName, amount, t
 	const text = `Dear ${userName},\n\nA ${transactionType} of amount $${amount} has failed to process on your account.\n\nTransaction ID: ${transactionId}\n\nBest regards,\nThe Banking-Ledger Team`;
 	const html = `
 		<p>Dear ${userName},</p>
-		<p>A ${transactionType} of amount $${amount} has failed to process on your account.</p>
+		<p>A ${transactionType} of amount ₹${amount} has failed to process on your account.</p>
 		<p>Transaction ID: ${transactionId}</p>
 		<p>Best regards,<br>The Banking-Ledger Team</p>
     `;

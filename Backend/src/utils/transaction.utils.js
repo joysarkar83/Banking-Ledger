@@ -31,7 +31,7 @@ export const validateIdempotency = async (idempotencyKey, res) => {
     return null;
 }
 
-export const createTransaction = async (fromAccount, toAccount, amount, idempotencyKey, res) => {
+export const createTransaction = async (fromAccount, toAccount, amount, idempotencyKey) => {
     const session = await transactionModel.startSession();
     let newTransaction;
 
@@ -67,7 +67,10 @@ export const createTransaction = async (fromAccount, toAccount, amount, idempote
         await session.commitTransaction();
         const completedTransaction = await transactionModel.findById(newTransaction._id);
         
-        return { success: true, transaction: completedTransaction || newTransaction };
+        return {
+            success: true,
+            transaction: newTransaction._id ? completedTransaction : null,
+        };
     } catch (error) {
         console.error("Error processing transaction:", error);
         if (session.inTransaction()) {
@@ -78,17 +81,22 @@ export const createTransaction = async (fromAccount, toAccount, amount, idempote
             await transactionModel.findByIdAndUpdate(newTransaction._id, { status: "FAILED" });
         }
 
+        return {
+            success: false,
+            transaction: newTransaction._id,
+        };
+
         throw error;
     } finally {
         await session.endSession();
     }
 }
 
-export const sendAppropriateEmails = (condition, fromUserEmail, fromUserName, toUserEmail, toUserName, amount) => {
+export const sendAppropriateEmails = (condition, fromUserEmail, fromUserName, toUserEmail, toUserName, amount, transactionId) => {
     if (condition) {
-        sendTransactionSuccessEmail(fromUserEmail, fromUserName, amount, "DEBIT", null,);
-        sendTransactionSuccessEmail(toUserEmail, toUserName, amount, "CREDIT", null,);
+        sendTransactionSuccessEmail(fromUserEmail, fromUserName, amount, "DEBIT", transactionId);
+        sendTransactionSuccessEmail(toUserEmail, toUserName, amount, "CREDIT", transactionId);
     } else {
-        sendTransactionFailureEmail(fromUserEmail, fromUserName, amount, "DEBIT", null,);
+        sendTransactionFailureEmail(fromUserEmail, fromUserName, amount, "DEBIT", transactionId);
     }
 }
