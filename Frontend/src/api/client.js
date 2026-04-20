@@ -4,13 +4,10 @@ export async function apiRequest(path, options = {}) {
   const { method = 'GET', body, headers = {} } = options
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
+    method: normalizedMethod,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers: requestHeaders,
+    body: hasBody ? JSON.stringify(body) : undefined,
   })
 
   const contentType = response.headers.get('content-type') || ''
