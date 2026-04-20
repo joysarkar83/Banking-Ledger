@@ -2,10 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-if (!PORT) {
-  console.error("PORT is not defined in the environment variables.");
-  process.exit(1);
-}
 
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {

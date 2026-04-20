@@ -75,3 +75,27 @@ export const sendTransactionFailureEmail = async (userEmail, userName, amount, t
     `;
     const info = await sendEmailLocal(userEmail, subject, text, html);
 };
+
+export const sendOTPEmail = async (userEmail, userName, otp) => {
+	const subject = "Your OTP for Banking-Ledger";
+	const text = `Hi ${userName},\n\nYour One-Time Password (OTP) is: ${otp}\n\nThis OTP is valid for 5 minutes.\n\nBest regards,\nThe Banking-Ledger Team`;
+	const html = `
+		<p>Hi ${userName},</p>
+		<p>Your One-Time Password (OTP) is: <strong>${otp}</strong></p>
+		<p>This OTP is valid for 5 minutes.</p>
+		<p>Best regards,<br>The Banking-Ledger Team</p>
+	`;
+	const info = await sendEmailLocal(userEmail, subject, text, html);
+};
+
+export const sendProfileEditedEmail = async (userEmail, userName) => {
+	const subject = "Profile Updated - Banking-Ledger";
+	const text = `Hi ${userName},\n\nYour profile has been updated successfully.\n\nIf you did not make this change, please contact our support team immediately.\n\nBest regards,\nThe Banking-Ledger Team`;
+	const html = `
+		<p>Hi ${userName},</p>
+		<p>Your profile has been updated successfully.</p>
+		<p>If you did not make this change, please contact our support team immediately.</p>
+		<p>Best regards,<br>The Banking-Ledger Team</p>
+	`;
+	const info = await sendEmailLocal(userEmail, subject, text, html);
+}

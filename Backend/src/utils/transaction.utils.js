@@ -1,6 +1,5 @@
 import transactionModel from "../models/transaction.model.js";
 import ledgerModel from "../models/ledger.model.js";
-import { sendTransactionSuccessEmail, sendTransactionFailureEmail, } from "../services/email.service.js";
 
 export const validateIdempotency = async (idempotencyKey, res) => {
     const existingTransaction = await transactionModel.findOne({ idempotencyKey });
@@ -89,14 +88,5 @@ export const createTransaction = async (fromAccount, toAccount, amount, idempote
         throw error;
     } finally {
         await session.endSession();
-    }
-}
-
-export const sendAppropriateEmails = (condition, fromUserEmail, fromUserName, toUserEmail, toUserName, amount, transactionId) => {
-    if (condition) {
-        sendTransactionSuccessEmail(fromUserEmail, fromUserName, amount, "DEBIT", transactionId);
-        sendTransactionSuccessEmail(toUserEmail, toUserName, amount, "CREDIT", transactionId);
-    } else {
-        sendTransactionFailureEmail(fromUserEmail, fromUserName, amount, "DEBIT", transactionId);
     }
 }

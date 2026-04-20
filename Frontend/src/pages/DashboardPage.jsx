@@ -16,9 +16,11 @@ const DashboardPage = () => {
   const [balance, setBalance] = useState(null)
   const [loading, setLoading] = useState(false)
   const [warning, setWarning] = useState('')
+  const [accountPin, setAccountPin] = useState('')
   const [transferForm, setTransferForm] = useState({
     toAccount: '',
     amount: '',
+    pin: '',
   })
   const [depositForm, setDepositForm] = useState({
     toAccount: '',
@@ -78,8 +80,13 @@ const DashboardPage = () => {
       return
     }
 
+    if (!/^\d{4}$/.test(accountPin)) {
+      setWarning('Please enter your 4-digit account PIN.')
+      return
+    }
+
     await withLoader(async () => {
-      const data = await bankingApi.getBalance({ accountId: selectedAccountId })
+      const data = await bankingApi.getBalance({ accountId: selectedAccountId, pin: accountPin })
       setBalance(data.balance)
     })
   }
@@ -101,17 +108,23 @@ const DashboardPage = () => {
       return
     }
 
+    if (!/^\d{4}$/.test(transferForm.pin)) {
+      setWarning('Please enter your 4-digit account PIN for transfer.')
+      return
+    }
+
     await withLoader(async () => {
       await bankingApi.transfer({
         fromAccount: selectedAccountId,
         toAccount: transferForm.toAccount,
         amount: Number(transferForm.amount),
+        pin: transferForm.pin,
         idempotencyKey: createIdempotencyKey(),
       })
 
-      setTransferForm({ toAccount: '', amount: '' })
+      setTransferForm({ toAccount: '', amount: '', pin: '' })
       await loadAccounts()
-      const data = await bankingApi.getBalance({ accountId: selectedAccountId })
+      const data = await bankingApi.getBalance({ accountId: selectedAccountId, pin: accountPin })
       setBalance(data.balance)
     })
   }
@@ -215,6 +228,21 @@ const DashboardPage = () => {
           <section className="card" style={{ padding: 18 }}>
             <h3 style={{ marginTop: 0, fontWeight: 700 }}>Account operations</h3>
 
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              <span className="muted" style={{ fontWeight: 700 }}>Account PIN</span>
+              <input
+                required
+                className="input"
+                type="password"
+                inputMode="numeric"
+                pattern="\d{4}"
+                maxLength={4}
+                placeholder="Enter 4-digit PIN"
+                value={accountPin}
+                onChange={(e) => setAccountPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              />
+            </label>
+
             <div className="account-actions">
               <button type="button" className="btn btn-muted" onClick={onShowBalance}>
                 Show Balance
@@ -272,6 +300,21 @@ const DashboardPage = () => {
                     value={transferForm.amount}
                     onChange={(e) => setTransferForm((current) => ({ ...current, amount: e.target.value }))}
                     placeholder="0.00"
+                  />
+                </label>
+
+                <label>
+                  <span className="muted" style={{ fontWeight: 700 }}>Account PIN</span>
+                  <input
+                    required
+                    className="input"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    placeholder="Enter 4-digit PIN"
+                    value={transferForm.pin}
+                    onChange={(e) => setTransferForm((current) => ({ ...current, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
                   />
                 </label>
 

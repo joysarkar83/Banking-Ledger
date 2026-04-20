@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import ledgerModel from "./ledger.model.js";
 
 const accountSchema = new mongoose.Schema(
@@ -8,6 +9,12 @@ const accountSchema = new mongoose.Schema(
 			ref: "User",
 			required: true,
 			index: true,
+		},
+		pin: {
+			type: String,
+			required: [true, "PIN is required!"],
+			match: [/^\d{4}$/, "PIN must be a 4-digit number!"],
+			select: false,
 		},
 		status: {
 			type: String,
@@ -35,6 +42,22 @@ const accountSchema = new mongoose.Schema(
 );
 
 accountSchema.index({ user: 1, status: 1 });
+
+accountSchema.pre("save", async function handlePinHash() {
+	if (!this.isModified("pin")) {
+		return;
+	}
+
+	this.pin = await bcrypt.hash(this.pin, 10);
+});
+
+accountSchema.methods.verifyPin = async function verifyPin(rawPin) {
+	if (!rawPin || !this.pin) {
+		return false;
+	}
+
+	return bcrypt.compare(String(rawPin), this.pin);
+}
 
 accountSchema.methods.getBalance = async function () {
 	const ledgers = await ledgerModel.aggregate([

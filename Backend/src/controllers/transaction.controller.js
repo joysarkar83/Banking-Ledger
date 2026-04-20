@@ -1,21 +1,31 @@
 import accountModel from "../models/account.model.js";
 import transactionModel from "../models/transaction.model.js";
 import userModel from "../models/user.model.js";
-import { createTransaction, sendAppropriateEmails, validateIdempotency } from "../utils/transaction.utils.js";
+import { createTransaction, validateIdempotency } from "../utils/transaction.utils.js";
+import { sendAppropriateEmails } from "../utils/email.utils.js";
 
 // /api/transaction/get-balance
 export const getBalance = async (req, res) => {
-    const { accountId } = req.body;
+    const { accountId, pin } = req.body;
     const user = req.user;
 
-    const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
+    if (!accountId || !pin) {
+        return res.status(400).json({ message: "accountId and pin are required!" });
+    }
 
-    if (!account || account.length === 0) {
+    const account = await accountModel.findOne({ user: user._id, _id: accountId }).select("+pin");
+
+    if (!account) {
         return res.status(404).json({ message: "Account not found!" });
     }
 
+    const isPinValid = await account.verifyPin(pin);
+    if (!isPinValid) {
+        return res.status(400).json({ message: "Invalid PIN!" });
+    }
+
     try {
-        const balance = await account[0].getBalance();
+        const balance = await account.getBalance();
         res.status(200).json({ balance: balance });
     } catch (error) {
         console.error("Error fetching balance:", error);
@@ -25,19 +35,27 @@ export const getBalance = async (req, res) => {
 
 // /api/transaction/transfer
 export const transfer = async (req, res) => {
-    const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
+    const { fromAccount, toAccount, pin, amount, idempotencyKey } = req.body;
     const fromUser = req.user;
+    const numericAmount = Number(amount);
 
     //  ------------------------ Validating Accounts ------------------------
-    if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
+    if (!fromAccount || !toAccount || !pin || !amount || !idempotencyKey) {
         return res.status(400).json({
             message:
-                "fromAccount, toAccount, amount, and idempotencyKey are required!",
+                "fromAccount, toAccount, pin, amount, and idempotencyKey are required!",
         });
     }
 
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number!" });
+    }
 
-    const fromAcc = await accountModel.findById(fromAccount);
+    if (String(fromAccount) === String(toAccount)) {
+        return res.status(400).json({ message: "fromAccount and toAccount must be different!" });
+    }
+
+    const fromAcc = await accountModel.findById(fromAccount).select("+pin");
     const toAcc = await accountModel.findById(toAccount);
 
     if (!fromAcc || !toAcc) {
@@ -52,6 +70,15 @@ export const transfer = async (req, res) => {
         });
     }
 
+    if (String(fromAcc.user) !== String(fromUser._id)) {
+        return res.status(403).json({ message: "You can only transfer from your own account!" });
+    }
+
+    const isPinValid = await fromAcc.verifyPin(pin);
+    if (!isPinValid) {
+        return res.status(400).json({ message: "Invalid PIN for fromAccount!" });
+    }
+
     //  ------------------------ Validating Idempotency ------------------------
     const idempotencyError = await validateIdempotency(idempotencyKey, res);
     if (idempotencyError) {
@@ -61,7 +88,7 @@ export const transfer = async (req, res) => {
     //  ------------------------ Validating Sufficient Funds ------------------------
     const balance = await fromAcc.getBalance();
 
-    if (balance < amount) {
+    if (balance < numericAmount) {
         return res
             .status(400)
             .json({ message: "Insufficient funds!" });
@@ -72,8 +99,8 @@ export const transfer = async (req, res) => {
 
     //  ------------------------ Creating Transaction ------------------------
     try {
-        const result = await createTransaction(fromAccount, toAccount, amount, idempotencyKey);
-        sendAppropriateEmails(result.success, fromUser.email, fromUser.name, toUser.email, toUser.name, amount, result.transaction._id);
+        const result = await createTransaction(fromAccount, toAccount, numericAmount, idempotencyKey);
+        sendAppropriateEmails(result.success, fromUser.email, fromUser.name, toUser.email, toUser.name, numericAmount, result.transaction._id);
         return res.status(201).json({message: "Transaction completed."});
     } catch (error) {
         console.error("Error processing transaction:", error);
@@ -142,12 +169,21 @@ export const deposit = async (req, res) => {
 
 // /api/transaction/transaction-history
 export const getTransactionHistory = async (req, res) => {
-    const { accountId } = req.body;
+    const { accountId, pin } = req.body;
     const user = req.user;
 
-    const account = await accountModel.find({ $and: [{ user: user._id }, { _id: accountId }] });
-    if (!account || account.length === 0) {
+    if (!accountId || !pin) {
+        return res.status(400).json({ message: "accountId and pin are required!" });
+    }
+
+    const account = await accountModel.findOne({ user: user._id, _id: accountId }).select("+pin");
+    if (!account) {
         return res.status(404).json({ message: "Account not found!" });
+    }
+
+    const isPinValid = await account.verifyPin(pin);
+    if (!isPinValid) {
+        return res.status(400).json({ message: "Invalid PIN!" });
     }
 
     try {

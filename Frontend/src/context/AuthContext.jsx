@@ -53,6 +53,11 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const data = await bankingApi.login(credentials)
+    return data
+  }, [])
+
+  const verifyLoginOtp = useCallback(async (payload) => {
+    const data = await bankingApi.loginVerifyOtp(payload)
     const me = await fetchCurrentUser()
     if (me) {
       await detectSystemUser()
@@ -62,6 +67,11 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     const data = await bankingApi.register(payload)
+    return data
+  }, [])
+
+  const verifyRegisterOtp = useCallback(async (payload) => {
+    const data = await bankingApi.registerVerifyOtp(payload)
     const me = await fetchCurrentUser()
     if (me) {
       await detectSystemUser()
@@ -82,11 +92,13 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user),
       isSystemUser,
       login,
+      verifyLoginOtp,
       register,
+      verifyRegisterOtp,
       logout,
       refreshUser: fetchCurrentUser,
     }),
-    [fetchCurrentUser, isSystemUser, loading, login, logout, register, user],
+    [fetchCurrentUser, isSystemUser, loading, login, logout, register, user, verifyLoginOtp, verifyRegisterOtp],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

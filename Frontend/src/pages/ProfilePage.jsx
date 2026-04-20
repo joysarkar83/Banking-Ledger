@@ -5,6 +5,8 @@ import { bankingApi } from '../api/bankingApi'
 import { useAuth } from '../context/AuthContext'
 
 const initialFormState = {
+  pin: '',
+  confirmPin: '',
   currency: 'INR',
 }
 
@@ -28,7 +30,24 @@ const ProfilePage = () => {
     setWarning('')
 
     try {
-      await bankingApi.createAccount(createAccountForm)
+      if (!/^\d{4}$/.test(createAccountForm.pin)) {
+        setWarning('Please provide a valid 4-digit PIN.')
+        setLoading(false)
+        return
+      }
+
+      if (createAccountForm.pin !== createAccountForm.confirmPin) {
+        setWarning('PIN and confirm PIN do not match.')
+        setLoading(false)
+        return
+      }
+
+      const payload = {
+        pin: createAccountForm.pin,
+        currency: createAccountForm.currency,
+      }
+
+      await bankingApi.createAccount(payload)
       setCreateAccountForm(initialFormState)
       setWarning('Bank account created successfully.')
     } catch (error) {
@@ -89,6 +108,36 @@ const ProfilePage = () => {
             <p className="muted" style={{paddingBottom: 16}}>Create additional accounts for your profile.</p>
 
             <form className="grid" onSubmit={handleCreateAccount}>
+              <label>
+                <span className="muted" style={{fontWeight: 700}}>4-digit PIN</span>
+                <input
+                  required
+                  className="input"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
+                  placeholder="****"
+                  value={createAccountForm.pin}
+                  onChange={(e) => setCreateAccountForm((current) => ({ ...current, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                />
+              </label>
+
+              <label>
+                <span className="muted" style={{fontWeight: 700}}>Confirm PIN</span>
+                <input
+                  required
+                  className="input"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
+                  placeholder="****"
+                  value={createAccountForm.confirmPin}
+                  onChange={(e) => setCreateAccountForm((current) => ({ ...current, confirmPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                />
+              </label>
+
               <label>
                 <span className="muted" style={{fontWeight: 700}}>Currency</span>
                 <input

@@ -2,7 +2,9 @@ import { apiRequest } from './client'
 
 export const bankingApi = {
   register: (payload) => apiRequest('/api/auth/register', { method: 'POST', body: payload }),
+  registerVerifyOtp: (payload) => apiRequest('/api/auth/register-verify-otp', { method: 'POST', body: payload }),
   login: (payload) => apiRequest('/api/auth/login', { method: 'POST', body: payload }),
+  loginVerifyOtp: (payload) => apiRequest('/api/auth/login-verify-otp', { method: 'POST', body: payload }),
   me: () => apiRequest('/api/auth/me', { method: 'GET' }),
   editProfile: (payload) => apiRequest('/api/auth/edit-profile', { method: 'PUT', body: payload }),
   logout: () => apiRequest('/api/auth/logout', { method: 'POST' }),

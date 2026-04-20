@@ -19,6 +19,7 @@ const TransactionsPage = () => {
 
   const [accounts, setAccounts] = useState([])
   const [selectedAccountId, setSelectedAccountId] = useState(searchParams.get('accountId') || '')
+  const [accountPin, setAccountPin] = useState('')
   const [transactions, setTransactions] = useState([])
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -54,7 +55,12 @@ const TransactionsPage = () => {
           return
         }
 
-        const historyResponse = await bankingApi.getTransactionHistory({ accountId })
+        if (!/^\d{4}$/.test(accountPin)) {
+          setTransactions([])
+          return
+        }
+
+        const historyResponse = await bankingApi.getTransactionHistory({ accountId, pin: accountPin })
         setTransactions(historyResponse.transactions || [])
         setPage(1)
       } catch (err) {
@@ -66,7 +72,7 @@ const TransactionsPage = () => {
 
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccountId])
+  }, [accountPin, selectedAccountId])
 
   useEffect(() => {
     if (page > totalPages) {
@@ -126,6 +132,21 @@ const TransactionsPage = () => {
                 ))}
               </select>
             </label>
+
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              <span className="muted" style={{marginBottom: 8, fontWeight: 700}}>Account PIN</span>
+              <input
+                required
+                className="input"
+                type="password"
+                inputMode="numeric"
+                pattern="\d{4}"
+                maxLength={4}
+                placeholder="Enter 4-digit PIN"
+                value={accountPin}
+                onChange={(e) => setAccountPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              />
+            </label>
           </div>
         </section>
 
@@ -149,6 +170,10 @@ const TransactionsPage = () => {
 
           {loading ? (
             <p className="muted">Loading transactions...</p>
+          ) : !/^\d{4}$/.test(accountPin) ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Enter your 4-digit account PIN to load transactions.
+            </p>
           ) : currentTransactions.length === 0 ? (
             <p className="muted" style={{ marginBottom: 0 }}>
               No transactions found for the selected account.

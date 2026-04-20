@@ -2,8 +2,9 @@ import userModel from "../models/user.model.js";
 import tokenBlacklistModel from "../models/tokenBlacklist.model.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { sendRegistrationEmail } from "../services//email.service.js";
+import { sendOTPEmail, sendProfileEditedEmail, sendRegistrationEmail } from "../services/email.service.js";
 import config from "../configs/config.js";
+import { generateAndSaveOTP, verifyOTP } from "../utils/otp.utils.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -27,22 +28,44 @@ export const register = async (req, res) => {
         return res.status(400).json({ message: "Email or mobile number already exists!" });
     }
 
-    const currPasswordHash = await bcrypt.hash(password, 12);
+    const otp = await generateAndSaveOTP(email, "REGISTER");
+    await sendOTPEmail(email, name, otp);
 
+    return res.status(200).json({ message: "OTP sent to your email! Please verify to complete registration." });
+}
+
+// /api/auth/register-verify-otp
+export const registerVerifyOTP = async (req, res) => {
+    const { password, name, mobileNo, email, otp } = req.body;
+
+    if (!email || !name || !password || !mobileNo || !otp) {
+        return res.status(400).json({ message: "Email, name, password, mobile number, and OTP are required!" });
+    }
+
+    const existingUser = await userModel.findOne({ $or: [{ email }, { mobileNo }] });
+    if (existingUser) {
+        return res.status(400).json({ message: "Email or mobile number already exists!" });
+    }
+    
+    const isValid = await verifyOTP(email, otp, "REGISTER");
+    if (!isValid) {
+        return res.status(400).json({ message: "Invalid or expired OTP!" });
+    }
+
+    const currPasswordHash = await bcrypt.hash(password, 12);
     const user = await userModel.create({
         name,
         mobileNo,
         email,
         passwordHash: currPasswordHash
     });
-
+    
     const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
 
-    res.cookie("token", token, getCookieOptions());
-
-    res.status(201).json({ message: "User registered successfully!", user: { email, name, mobileNo } });
-
+    res.cookie("token", token, getCookieOptions());    
+    
     await sendRegistrationEmail(user.email, user.name);
+    return res.status(200).json({ message: "Registration successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
 }
 
 // /api/auth/login
@@ -64,12 +87,35 @@ export const login = async (req, res) => {
         return res.status(400).json({ message: "Invalid email or password!" });
     }
 
-    const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
+    // Send OTP to user's email
+    const otp = await generateAndSaveOTP(user.email, "LOGIN");
+    await sendOTPEmail(user.email, user.name, otp);
+
+    return res.status(200).json({ message: "OTP sent to your email! Please verify to complete login.", userId: user._id });
+}
+
+// /api/auth/login-verify-otp
+export const loginVerifyOTP = async (req, res) => {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) {
+        return res.status(400).json({ message: "User ID and OTP are required!" });
+    }
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found!" });
+    }
+
+    const isValid = await verifyOTP(user.email, otp, "LOGIN");
+    if (!isValid) {
+        return res.status(400).json({ message: "Invalid or expired OTP!" });
+    }
+
+    const token = jwt.sign({ userId: userId }, config.JWT_SECRET, { expiresIn: "1d" });
 
     res.cookie("token", token, getCookieOptions());
-
-    res.status(200).json({ message: "Login successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
-}
+    return res.status(200).json({ message: "Login successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
+};
 
 // /api/auth/logout
 export const logout = async (req, res) => {
@@ -85,8 +131,7 @@ export const logout = async (req, res) => {
     delete clearCookieOptions.maxAge;
     res.clearCookie("token", clearCookieOptions);
 
-
-    res.status(200).json({ message: "Logout successful!" });
+    return res.status(200).json({ message: "Logout successful!" });
 }
 
 // /api/auth/me
@@ -98,10 +143,10 @@ export const getCurrentUser = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found!" });
         }
-        res.status(200).json({ user });
+        return res.status(200).json({ user });
     } catch (error) {
         console.error("Error fetching current user:", error);
-        res.status(500).json({ message: "Internal server error!" });
+        return res.status(500).json({ message: "Internal server error!" });
     }
 }
 
@@ -151,9 +196,10 @@ export const editProfile = async (req, res) => {
         }
 
         await user.save();
-        res.status(200).json({ message: "Profile updated successfully!" });
+        await sendProfileEditedEmail(user.email, user.name);
+        return res.status(200).json({ message: "Profile updated successfully!" });
     } catch (error) {
         console.error("Error updating profile:", error);
-        res.status(500).json({ message: "Internal server error!" });
+        return res.status(500).json({ message: "Internal server error!" });
     }
 }
