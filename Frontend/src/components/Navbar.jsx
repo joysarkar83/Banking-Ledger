@@ -19,7 +19,7 @@ const Navbar = () => {
         <p className="pill">Secure Banking</p>
         <h1 style={{ margin: '8px 0 0', fontSize: '1.5rem', fontWeight: 700 }}>Banking Ledger</h1>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="top-nav-actions">
         <Link to="/dashboard" className="btn btn-muted">
           Dashboard
         </Link>

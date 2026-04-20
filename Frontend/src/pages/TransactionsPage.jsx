@@ -102,12 +102,12 @@ const TransactionsPage = () => {
       <div className="container">
         <Navbar title="Transactions" />
 
-        <section className="card" style={{ padding: 18, marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <section className="card transactions-filter-card" style={{ padding: 18, marginBottom: 16 }}>
+          <div className="transactions-heading">
             <div>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: '1.25rem' }}>Transaction history</h2>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="transactions-heading-actions">
               <button type="button" className="btn btn-muted" onClick={() => navigate('/dashboard')}>
                 Back to dashboard
               </button>
@@ -129,15 +129,15 @@ const TransactionsPage = () => {
           </div>
         </section>
 
-        <section className="card" style={{ padding: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <section className="card transactions-list-card" style={{ padding: 18 }}>
+          <div className="transactions-list-top" style={{ marginBottom: 16 }}>
             <div>
               <h3 style={{ margin: 0 }}>Transactions</h3>
               <p className="muted" style={{ margin: '6px 0 0' }}>
                 Page {page} of {totalPages}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="transactions-nav">
               <button type="button" className="btn btn-muted" onClick={() => handlePageChange(page - 1)} disabled={loading || page <= 1}>
                 Previous
               </button>
@@ -156,17 +156,17 @@ const TransactionsPage = () => {
           ) : (
             <div className="grid" style={{ gap: 10 }}>
               {currentTransactions.map((transaction) => (
-                <article key={transaction._id} className="card" style={{ padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <article key={transaction._id} className="card transaction-item">
+                  <div className="transaction-item-head">
                     <p style={{ margin: 0, fontWeight: 700 }}>{formatINR(transaction.amount)}</p>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <div className="transaction-item-badges">
                       <span className="pill">{getTransactionType(transaction, selectedAccountId)}</span>
                       <span className={`pill status-${String(transaction.status || '').toLowerCase()}`}>
                         {transaction.status}
                       </span>
                     </div>
                   </div>
-                  <p className="muted" style={{ margin: '6px 0 4px', fontSize: 12 }}>
+                  <p className="muted transaction-route" style={{ margin: '6px 0 4px', fontSize: 12 }}>
                     {String(transaction.fromAccount)} → {String(transaction.toAccount)}
                   </p>
                   <p className="muted" style={{ margin: 0, fontSize: 12 }}>
@@ -178,7 +178,7 @@ const TransactionsPage = () => {
           )}
 
           {transactions.length > 0 ? (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
+            <div className="transactions-page-list" style={{ marginTop: 18 }}>
               {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
                 <button
                   key={pageNumber}

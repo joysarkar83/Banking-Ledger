@@ -160,7 +160,7 @@ const DashboardPage = () => {
           </article>
         </div>
 
-        <section ref={accountsListRef} className="card" style={{ padding: 18, marginBottom: 16 }}>
+        <section ref={accountsListRef} className="card accounts-panel" style={{ padding: 18, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 12 }}>
             <div>
               <h3 style={{ margin: 0, fontWeight: 700 }}>All accounts</h3>
@@ -170,7 +170,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 6 }}>
+          <div className="accounts-scroll">
             {accounts.length === 0 ? (
               <p className="muted" style={{ margin: 0 }}>
                 No accounts found yet.
@@ -183,25 +183,21 @@ const DashboardPage = () => {
                     <button
                       key={account._id}
                       type="button"
-                      className="card"
+                      className="card account-item"
                       onClick={() => setSelectedAccountId(account._id)}
                       style={{
-                        padding: 14,
-                        width: '100%',
-                        textAlign: 'left',
-                        cursor: 'pointer',
                         borderColor: isSelected ? 'rgba(89, 182, 255, 0.75)' : 'rgba(146, 163, 219, 0.22)',
                         boxShadow: isSelected ? '0 0 0 1px rgba(89, 182, 255, 0.35)' : 'none',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                      <div className="account-item-head">
                         <div>
                           <p style={{ margin: 0, fontWeight: 700 }}>Account #{index + 1}</p>
                           <p className="muted" style={{ margin: '6px 0 0', fontSize: 12, wordBreak: 'break-all' }}>
                             {account._id}
                           </p>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <div className="account-item-badges">
                           <span className="pill">{account.status}</span>
                           <span className="pill">{account.currency || 'INR'}</span>
                           {isSelected ? <span className="pill">Selected</span> : null}
@@ -219,7 +215,7 @@ const DashboardPage = () => {
           <section className="card" style={{ padding: 18 }}>
             <h3 style={{ marginTop: 0, fontWeight: 700 }}>Account operations</h3>
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, marginTop: 8 }}>
+            <div className="account-actions">
               <button type="button" className="btn btn-muted" onClick={onShowBalance}>
                 Show Balance
               </button>
@@ -232,7 +228,7 @@ const DashboardPage = () => {
               <p className="muted" style={{ margin: 0 }}>Current balance</p>
               <h2 style={{ margin: '8px 0 0' }}>{formatINR(balance)}</h2>
               {selectedAccount ? (
-                <p className="muted" style={{ marginBottom: 0 }}>
+                <p className="muted selected-account-id" style={{ marginBottom: 0 }}>
                   Selected: {selectedAccount._id}
                 </p>
               ) : null}

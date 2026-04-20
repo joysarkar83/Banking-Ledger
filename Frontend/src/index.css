@@ -383,6 +383,94 @@ a {
 	margin-bottom: 20px;
 }
 
+.top-nav-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.accounts-scroll {
+	max-height: 260px;
+	overflow-y: auto;
+	padding-right: 6px;
+}
+
+.account-item {
+	padding: 14px;
+	width: 100%;
+	text-align: left;
+	cursor: pointer;
+}
+
+.account-item-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: center;
+}
+
+.account-item-badges {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.account-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 16px;
+	margin-top: 8px;
+}
+
+.selected-account-id {
+	word-break: break-all;
+}
+
+.transactions-heading,
+.transactions-list-top,
+.transaction-item-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.transactions-heading {
+	gap: 16px;
+}
+
+.transactions-nav,
+.transactions-heading-actions,
+.transactions-page-list {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.transaction-item {
+	padding: 14px;
+}
+
+.transaction-item-badges {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.transaction-route {
+	word-break: break-all;
+}
+
+.transactions-page-list {
+	justify-content: center;
+}
+
 .global-footer {
 	left: 0;
 	right: 0;
@@ -453,7 +541,146 @@ a {
 		grid-template-columns: 1fr;
 	}
 
+	.container {
+		padding: 18px;
+	}
+
+	.card {
+		border-radius: 16px;
+	}
+
 	.global-footer-inner {
 		justify-content: center;
+	}
+}
+
+@media (max-width: 720px) {
+	.container {
+		padding: 14px;
+	}
+
+	.auth-wrap {
+		padding: 14px 14px 96px;
+	}
+
+	.auth-card {
+		width: 100%;
+		max-width: 100%;
+		padding: 20px 16px;
+	}
+
+	.top-nav {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.top-nav-actions {
+		justify-content: stretch;
+		width: 100%;
+	}
+
+	.top-nav-actions .btn,
+	.top-nav-actions a.btn {
+		flex: 1 1 140px;
+		text-align: center;
+	}
+
+	.floating-warning {
+		top: 12px;
+		right: 12px;
+		left: 12px;
+		width: auto;
+		padding: 12px;
+	}
+
+	.global-footer {
+		padding: 8px 12px 12px;
+	}
+
+	.social-link {
+		width: 40px;
+		height: 40px;
+		padding: 7px;
+	}
+}
+
+@media (max-width: 480px) {
+	.container {
+		padding: 12px;
+	}
+
+	.btn {
+		padding: 10px 12px;
+		font-size: 0.92rem;
+	}
+
+	.input,
+	.select {
+		padding: 10px 11px;
+		font-size: 0.95rem;
+	}
+
+	.pill {
+		font-size: 11px;
+		padding: 5px 8px;
+	}
+
+	.top-nav h1 {
+		font-size: 1.3rem !important;
+	}
+}
+
+@media (max-width: 560px) {
+	.accounts-scroll {
+		max-height: 220px;
+		padding-right: 2px;
+	}
+
+	.account-item-head,
+	.transaction-item-head {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.account-item-badges,
+	.transaction-item-badges {
+		justify-content: flex-start;
+	}
+
+	.account-actions .btn,
+	.transactions-nav .btn,
+	.transactions-heading-actions .btn {
+		flex: 1 1 140px;
+		text-align: center;
+	}
+
+	.transactions-nav,
+	.transactions-heading-actions {
+		width: 100%;
+	}
+}
+
+@media (max-width: 380px) {
+	.account-item,
+	.transaction-item,
+	.auth-card {
+		padding: 12px;
+	}
+
+	.top-nav-actions .btn,
+	.top-nav-actions a.btn,
+	.account-actions .btn,
+	.transactions-nav .btn,
+	.transactions-heading-actions .btn {
+		flex-basis: 100%;
+	}
+
+	.floating-warning {
+		padding: 10px 11px;
+	}
+
+	.floating-warning p {
+		font-size: 0.9rem;
 	}
 }
