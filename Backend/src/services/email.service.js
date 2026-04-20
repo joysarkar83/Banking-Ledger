@@ -33,7 +33,7 @@ const sendEmailLocal = async (to, subject, text, html) => {
 
 	try {
 		const sentInfo = await transporter.sendMail(mailOptions);
-		console.log("Email sent successfully:", sentInfo.messageId);
+		console.log("Email sent successfully:");
 		return sentInfo;
 	} catch (error) {
 		console.error("Error sending email:", error);
