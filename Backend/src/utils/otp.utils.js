@@ -2,44 +2,53 @@ import bcrypt from "bcryptjs";
 import otpModel from "../models/otp.model.js";
 
 export const generateAndSaveOTP = async (email, purpose = "LOGIN") => {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedPurpose = String(purpose).toUpperCase();
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
 
     await otpModel.deleteMany({
-        email: String(email).toLowerCase(),
-        purpose,
+        email: normalizedEmail,
+        purpose: normalizedPurpose,
     });
 
     await otpModel.create({
-        email: String(email).toLowerCase(),
+        email: normalizedEmail,
         otpHash,
-        purpose,
+        purpose: normalizedPurpose,
     });
 
     return otp;
 }
 
 export const verifyOTP = async (email, otp, purpose = "LOGIN") => {
-    const otpRecord = await otpModel
-        .findOne({ email: String(email).toLowerCase(), purpose })
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedPurpose = String(purpose).toUpperCase();
+    const normalizedOtp = String(otp).trim();
+
+    const otpRecords = await otpModel
+        .find({ email: normalizedEmail, purpose: normalizedPurpose })
         .sort({ createdAt: -1 });
 
-    if (!otpRecord) {
+    if (!otpRecords.length) {
         return false;
     }
 
-    const isValid = await bcrypt.compare(String(otp), otpRecord.otpHash);
-    if (!isValid) {
-        otpRecord.attempts = (otpRecord.attempts || 0) + 1;
-        if (otpRecord.attempts >= 5) {
-            await otpModel.deleteOne({ _id: otpRecord._id });
-            return false;
+    for (const otpRecord of otpRecords) {
+        const isValid = await bcrypt.compare(normalizedOtp, otpRecord.otpHash);
+        if (isValid) {
+            await otpModel.deleteMany({ email: normalizedEmail, purpose: normalizedPurpose });
+            return true;
         }
+    }
 
-        await otpRecord.save();
+    const latestOtpRecord = otpRecords[0];
+    latestOtpRecord.attempts = (latestOtpRecord.attempts || 0) + 1;
+    if (latestOtpRecord.attempts >= 5) {
+        await otpModel.deleteMany({ email: normalizedEmail, purpose: normalizedPurpose });
         return false;
     }
 
-    await otpModel.deleteOne({ _id: otpRecord._id });
-    return true;
+    await latestOtpRecord.save();
+    return false;
 }
