@@ -2,6 +2,16 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export async function apiRequest(path, options = {}) {
   const { method = 'GET', body, headers = {} } = options
+  const hasBody = body !== undefined && body !== null
+  const normalizedMethod = String(method).toUpperCase()
+
+  const requestHeaders = {
+    ...headers,
+  }
+
+  if (hasBody && !requestHeaders['Content-Type']) {
+    requestHeaders['Content-Type'] = 'application/json'
+  }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: normalizedMethod,
