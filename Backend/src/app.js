@@ -3,9 +3,31 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import cors from "cors";
 
+const explicitAllowedOrigins = [
+	"http://localhost:5173",
+	"https://banking-ledger-alpha.vercel.app",
+	process.env.FRONTEND_ORIGIN,
+].filter(Boolean);
+
+const vercelPreviewRegex = /^https:\/\/banking-ledger-.*\.vercel\.app$/;
+
+const corsOptions = {
+	origin: (origin, callback) => {
+		if (!origin) {
+			callback(null, true);
+			return;
+		}
+
+		const isAllowed = explicitAllowedOrigins.includes(origin) || vercelPreviewRegex.test(origin);
+		callback(null, isAllowed);
+	},
+	credentials: true,
+	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	allowedHeaders: ["Content-Type", "Authorization"],
+};
 
 const app = express();
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(morgan("dev"));
 app.use(express.json());

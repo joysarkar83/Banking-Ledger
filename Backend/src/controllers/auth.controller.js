@@ -5,6 +5,15 @@ import bcrypt from "bcryptjs";
 import { sendRegistrationEmail } from "../services//email.service.js";
 import config from "../configs/config.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const getCookieOptions = () => ({
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "strict",
+    maxAge: 24 * 60 * 60 * 1000,
+});
+
 // /api/auth/register
 export const register = async (req, res) => {
     const { name, mobileNo, email, password } = req.body;
@@ -29,12 +38,7 @@ export const register = async (req, res) => {
 
     const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
 
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
-    });
+    res.cookie("token", token, getCookieOptions());
 
     res.status(201).json({ message: "User registered successfully!", user: { email, name, mobileNo } });
 
@@ -62,12 +66,7 @@ export const login = async (req, res) => {
 
     const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
 
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
-    });
+    res.cookie("token", token, getCookieOptions());
 
     res.status(200).json({ message: "Login successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
 }
@@ -82,11 +81,9 @@ export const logout = async (req, res) => {
 
     await tokenBlacklistModel.create({ token });
 
-    res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-    });
+    const clearCookieOptions = getCookieOptions();
+    delete clearCookieOptions.maxAge;
+    res.clearCookie("token", clearCookieOptions);
 
 
     res.status(200).json({ message: "Logout successful!" });

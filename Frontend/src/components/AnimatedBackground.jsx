@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 
+const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js'
 const P5_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js'
 const VANTA_CDN = 'https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.topology.min.js'
 
@@ -34,6 +35,7 @@ const AnimatedBackground = () => {
 
     const initBackground = async () => {
       try {
+        await loadScript(THREE_CDN, () => Boolean(window.THREE))
         await loadScript(P5_CDN, () => Boolean(window.p5))
         await loadScript(VANTA_CDN, () => Boolean(window.VANTA?.TOPOLOGY))
 
