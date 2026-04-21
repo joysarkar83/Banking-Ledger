@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { bankingApi } from '../api/bankingApi'
 import Navbar from '../components/Navbar'
 import { formatINR } from '../utils/currency'
+import { useAuth } from '../context/AuthContext'
 
 const ITEMS_PER_PAGE = 5
 
@@ -15,6 +16,7 @@ const getTransactionType = (transaction, accountId) => {
 
 const TransactionsPage = () => {
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const [searchParams] = useSearchParams()
 
   const [accounts, setAccounts] = useState([])
@@ -22,13 +24,8 @@ const TransactionsPage = () => {
   const [accountPin, setAccountPin] = useState('')
   const [transactions, setTransactions] = useState([])
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [warning, setWarning] = useState('')
-
-  const selectedAccount = useMemo(
-    () => accounts.find((account) => account._id === selectedAccountId) || null,
-    [accounts, selectedAccountId],
-  )
 
   const totalPages = Math.max(1, Math.ceil(transactions.length / ITEMS_PER_PAGE))
   const currentTransactions = useMemo(() => {
@@ -37,7 +34,7 @@ const TransactionsPage = () => {
   }, [page, transactions])
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadAccounts = async () => {
       setLoading(true)
       setWarning('')
       try {
@@ -49,20 +46,6 @@ const TransactionsPage = () => {
         if (!selectedAccountId && accountId) {
           setSelectedAccountId(accountId)
         }
-
-        if (!accountId) {
-          setTransactions([])
-          return
-        }
-
-        if (!/^\d{4}$/.test(accountPin)) {
-          setTransactions([])
-          return
-        }
-
-        const historyResponse = await bankingApi.getTransactionHistory({ accountId, pin: accountPin })
-        setTransactions(historyResponse.transactions || [])
-        setPage(1)
       } catch (err) {
         setWarning(err?.message || 'Unable to load transactions right now.')
       } finally {
@@ -70,9 +53,9 @@ const TransactionsPage = () => {
       }
     }
 
-    loadData()
+    loadAccounts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountPin, selectedAccountId])
+  }, [])
 
   useEffect(() => {
     if (page > totalPages) {
@@ -83,6 +66,38 @@ const TransactionsPage = () => {
   const handleAccountChange = async (event) => {
     const accountId = event.target.value
     setSelectedAccountId(accountId)
+    setTransactions([])
+    setPage(1)
+  }
+
+  const handleLoadTransactions = async () => {
+    if (!selectedAccountId) {
+      setWarning('Please choose an account first.')
+      return
+    }
+
+    if (!/^\d{4}$/.test(accountPin)) {
+      setWarning('Please enter your 4-digit account PIN.')
+      return
+    }
+
+    setLoading(true)
+    setWarning('')
+
+    try {
+      const historyResponse = await bankingApi.getTransactionHistory({ accountId: selectedAccountId, pin: accountPin })
+      setTransactions(historyResponse.transactions || [])
+      setPage(1)
+    } catch (err) {
+      if (err?.payload?.forceLogout) {
+        await logout()
+        navigate('/login', { replace: true })
+        return
+      }
+      setWarning(err?.message || 'Unable to load transactions right now.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handlePageChange = (nextPage) => {
@@ -147,6 +162,10 @@ const TransactionsPage = () => {
                 onChange={(e) => setAccountPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
               />
             </label>
+
+            <button type="button" className="btn btn-primary" onClick={handleLoadTransactions} disabled={loading}>
+              {loading ? 'Loading transactions...' : 'Load Transactions'}
+            </button>
           </div>
         </section>
 

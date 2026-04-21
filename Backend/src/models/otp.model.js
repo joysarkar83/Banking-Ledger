@@ -19,12 +19,12 @@ const otpSchema = new mongoose.Schema({
   },
   purpose: {
     type: String,
-    enum: ['REGISTER', 'LOGIN'],
+    enum: ['REGISTER', 'LOGIN', 'FORGOT_PASSWORD', 'FORGOT_PIN'],
     required: true,
     default: 'LOGIN',
   }
 }, {
-    timestamps: true,
+  timestamps: true,
 });
 
 otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 300 });

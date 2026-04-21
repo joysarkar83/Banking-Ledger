@@ -13,9 +13,38 @@ const initialFormState = {
 const ProfilePage = () => {
   const { user, isSystemUser } = useAuth()
   const navigate = useNavigate()
+  const [accounts, setAccounts] = useState([])
   const [createAccountForm, setCreateAccountForm] = useState(initialFormState)
+  const [pinResetForm, setPinResetForm] = useState({
+    accountId: '',
+    otp: '',
+    newPin: '',
+    confirmNewPin: '',
+  })
+  const [otpSentForPinReset, setOtpSentForPinReset] = useState(false)
   const [warning, setWarning] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pinLoading, setPinLoading] = useState(false)
+
+  const loadAccounts = async () => {
+    const data = await bankingApi.getAllAccounts()
+    const accountList = data.accounts || []
+    setAccounts(accountList)
+
+    if (!pinResetForm.accountId && accountList.length) {
+      setPinResetForm((current) => ({
+        ...current,
+        accountId: accountList[0]._id,
+      }))
+    }
+  }
+
+  useEffect(() => {
+    loadAccounts().catch(() => {
+      setWarning('Unable to load accounts right now.')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!warning) return undefined
@@ -50,10 +79,72 @@ const ProfilePage = () => {
       await bankingApi.createAccount(payload)
       setCreateAccountForm(initialFormState)
       setWarning('Bank account created successfully.')
+      await loadAccounts()
     } catch (error) {
       setWarning(error?.message || 'Unable to create the account right now.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSendPinResetOtp = async (event) => {
+    event.preventDefault()
+    setPinLoading(true)
+    setWarning('')
+
+    try {
+      if (!pinResetForm.accountId) {
+        setWarning('Please select an account for PIN reset.')
+        setPinLoading(false)
+        return
+      }
+
+      await bankingApi.forgotPin({ accountId: pinResetForm.accountId })
+      setOtpSentForPinReset(true)
+      setWarning('OTP sent for PIN reset. Please check your email.')
+    } catch (error) {
+      setWarning(error?.message || 'Unable to send PIN reset OTP right now.')
+    } finally {
+      setPinLoading(false)
+    }
+  }
+
+  const handleResetPin = async (event) => {
+    event.preventDefault()
+    setPinLoading(true)
+    setWarning('')
+
+    try {
+      if (!/^\d{4}$/.test(pinResetForm.newPin)) {
+        setWarning('Please provide a valid 4-digit new PIN.')
+        setPinLoading(false)
+        return
+      }
+
+      if (pinResetForm.newPin !== pinResetForm.confirmNewPin) {
+        setWarning('New PIN and confirm PIN do not match.')
+        setPinLoading(false)
+        return
+      }
+
+      await bankingApi.resetPin({
+        accountId: pinResetForm.accountId,
+        otp: pinResetForm.otp,
+        newPin: pinResetForm.newPin,
+      })
+
+      setOtpSentForPinReset(false)
+      setPinResetForm((current) => ({
+        ...current,
+        otp: '',
+        newPin: '',
+        confirmNewPin: '',
+      }))
+      setWarning('Account PIN reset successfully.')
+    } catch (error) {
+      setWarning(error?.message || 'Unable to reset account PIN right now.')
+    } finally {
+      setPinLoading(false)
     }
   }
 
@@ -151,6 +242,86 @@ const ProfilePage = () => {
                 {loading ? 'Creating account...' : 'Create Bank Account'}
               </button>
             </form>
+          </section>
+
+          <section className="card" style={{ padding: 20 }}>
+            <h2 style={{ marginTop: 0 }}>Change account PIN</h2>
+            <p className="muted" style={{ paddingBottom: 16 }}>PIN reset is account-specific and verified via OTP.</p>
+
+            <form className="grid" onSubmit={handleSendPinResetOtp}>
+              <label>
+                <span className="muted" style={{ fontWeight: 700 }}>Select account</span>
+                <select
+                  className="select"
+                  required
+                  value={pinResetForm.accountId}
+                  onChange={(e) => setPinResetForm((current) => ({ ...current, accountId: e.target.value }))}
+                >
+                  <option value="">Choose account</option>
+                  {accounts.map((account) => (
+                    <option key={account._id} value={account._id}>
+                      {account._id} • {account.status} • {account.currency || 'INR'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button className="btn btn-muted" type="submit" disabled={pinLoading}>
+                {pinLoading ? 'Sending OTP...' : 'Send PIN reset OTP'}
+              </button>
+            </form>
+
+            {otpSentForPinReset ? (
+              <form className="grid" style={{ marginTop: 14 }} onSubmit={handleResetPin}>
+                <label>
+                  <span className="muted" style={{ fontWeight: 700 }}>OTP</span>
+                  <input
+                    required
+                    minLength={6}
+                    maxLength={6}
+                    inputMode="numeric"
+                    className="input"
+                    placeholder="Enter 6-digit OTP"
+                    value={pinResetForm.otp}
+                    onChange={(e) => setPinResetForm((current) => ({ ...current, otp: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                  />
+                </label>
+
+                <label>
+                  <span className="muted" style={{ fontWeight: 700 }}>New 4-digit PIN</span>
+                  <input
+                    required
+                    className="input"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    placeholder="****"
+                    value={pinResetForm.newPin}
+                    onChange={(e) => setPinResetForm((current) => ({ ...current, newPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  />
+                </label>
+
+                <label>
+                  <span className="muted" style={{ fontWeight: 700 }}>Confirm new PIN</span>
+                  <input
+                    required
+                    className="input"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    placeholder="****"
+                    value={pinResetForm.confirmNewPin}
+                    onChange={(e) => setPinResetForm((current) => ({ ...current, confirmNewPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  />
+                </label>
+
+                <button className="btn btn-primary" type="submit" disabled={pinLoading}>
+                  {pinLoading ? 'Resetting PIN...' : 'Reset PIN'}
+                </button>
+              </form>
+            ) : null}
           </section>
         </div>
       </div>

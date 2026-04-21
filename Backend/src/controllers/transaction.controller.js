@@ -1,8 +1,56 @@
-import accountModel from "../models/account.model.js";
+import accountModel, { ACCOUNT_MAX_PIN_ATTEMPTS } from "../models/account.model.js";
 import transactionModel from "../models/transaction.model.js";
+import tokenBlacklistModel from "../models/tokenBlacklist.model.js";
 import userModel from "../models/user.model.js";
 import { createTransaction, validateIdempotency } from "../utils/transaction.utils.js";
 import { sendAppropriateEmails } from "../utils/email.utils.js";
+
+const MAX_PIN_ATTEMPTS = ACCOUNT_MAX_PIN_ATTEMPTS;
+
+const getClearCookieOptions = () => ({
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+});
+
+const invalidateCurrentSession = async (req, res) => {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+    if (token) {
+        await tokenBlacklistModel.create({ token });
+    }
+
+    res.clearCookie("token", getClearCookieOptions());
+};
+
+const validatePinOrHandleLock = async (account, pin, req, res, invalidMessage = "Invalid PIN!") => {
+    const isPinValid = await account.verifyPin(pin);
+
+    if (isPinValid) {
+        if (account.attempts > 0) {
+            account.attempts = 0;
+            await account.save();
+        }
+        return true;
+    }
+
+    account.attempts = Math.min((account.attempts || 0) + 1, MAX_PIN_ATTEMPTS);
+    await account.save();
+
+    if (account.attempts >= MAX_PIN_ATTEMPTS) {
+        await invalidateCurrentSession(req, res);
+        res.status(401).json({
+            message: "Maximum PIN attempts exceeded. You have been logged out for security reasons.",
+            forceLogout: true,
+        });
+        return false;
+    }
+
+    res.status(400).json({
+        message: invalidMessage,
+        attemptsLeft: MAX_PIN_ATTEMPTS - account.attempts,
+    });
+    return false;
+};
 
 // /api/transaction/get-balance
 export const getBalance = async (req, res) => {
@@ -19,9 +67,9 @@ export const getBalance = async (req, res) => {
         return res.status(404).json({ message: "Account not found!" });
     }
 
-    const isPinValid = await account.verifyPin(pin);
-    if (!isPinValid) {
-        return res.status(400).json({ message: "Invalid PIN!" });
+    const pinOkay = await validatePinOrHandleLock(account, pin, req, res, "Invalid PIN!");
+    if (!pinOkay) {
+        return;
     }
 
     try {
@@ -74,9 +122,9 @@ export const transfer = async (req, res) => {
         return res.status(403).json({ message: "You can only transfer from your own account!" });
     }
 
-    const isPinValid = await fromAcc.verifyPin(pin);
-    if (!isPinValid) {
-        return res.status(400).json({ message: "Invalid PIN for fromAccount!" });
+    const pinOkay = await validatePinOrHandleLock(fromAcc, pin, req, res, "Invalid PIN for fromAccount!");
+    if (!pinOkay) {
+        return;
     }
 
     //  ------------------------ Validating Idempotency ------------------------
@@ -112,12 +160,12 @@ export const transfer = async (req, res) => {
 
 // /api/transaction/deposit
 export const deposit = async (req, res) => {
-    const { toAccount, amount, idempotencyKey } = req.body || {};
+    const { toAccount, amount, idempotencyKey } = req.body;
     const systemUser = req.user;
 
     if (!toAccount || !amount || !idempotencyKey) {
         return res.status(400).json({
-            message: "toAccount, amount, and idempotencyKey are required for initial transaction!",
+            message: "toAccount, amount, and idempotencyKey are required for amount deposition!",
         });
     }
 
@@ -147,13 +195,7 @@ export const deposit = async (req, res) => {
 
     // ------------------------ Fetching Account Name and Email ------------------------
     const toUser = await userModel.findById(toAcc.user).select("name email");
-
-    if (!toUser || !systemUser) {
-        return res.status(404).json({
-            message: "User for system or recipient account was not found!",
-        });
-    }
-
+    
     //  ------------------------ Creating Initial Transaction ------------------------
     try {
         const result = await createTransaction(systemAcc._id, toAccount, amount, idempotencyKey);
@@ -181,9 +223,9 @@ export const getTransactionHistory = async (req, res) => {
         return res.status(404).json({ message: "Account not found!" });
     }
 
-    const isPinValid = await account.verifyPin(pin);
-    if (!isPinValid) {
-        return res.status(400).json({ message: "Invalid PIN!" });
+    const pinOkay = await validatePinOrHandleLock(account, pin, req, res, "Invalid PIN!");
+    if (!pinOkay) {
+        return;
     }
 
     try {

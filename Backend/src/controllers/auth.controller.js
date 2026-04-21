@@ -1,8 +1,9 @@
 import userModel from "../models/user.model.js";
 import tokenBlacklistModel from "../models/tokenBlacklist.model.js";
+import accountModel from "../models/account.model.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { sendOTPEmail, sendProfileEditedEmail, sendRegistrationEmail } from "../services/email.service.js";
+import { sendOTPEmail, sendProfileEditedEmail, sendRegistrationEmail, sendPasswordResetEmail } from "../services/email.service.js";
 import config from "../configs/config.js";
 import { generateAndSaveOTP, verifyOTP } from "../utils/otp.utils.js";
 
@@ -37,6 +38,10 @@ export const register = async (req, res) => {
 // /api/auth/register-verify-otp
 export const registerVerifyOTP = async (req, res) => {
     const { password, name, mobileNo, email, otp } = req.body;
+
+    if (!email || !name || !mobileNo || !password || !otp) {
+        return res.status(400).json({ message: "Email, name, mobile number, password, and OTP are required!" });
+    }
 
     const isValid = await verifyOTP(email, otp, "REGISTER");
     if (!isValid) {
@@ -87,12 +92,14 @@ export const login = async (req, res) => {
 
 // /api/auth/login-verify-otp
 export const loginVerifyOTP = async (req, res) => {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
-        return res.status(400).json({ message: "Email and OTP are required!" });
+    const { email, userId, otp } = req.body;
+    if ((!email && !userId) || !otp) {
+        return res.status(400).json({ message: "Either email or userId and OTP are required!" });
     }
 
-    const user = await userModel.findOne({ email });
+    const user = email
+        ? await userModel.findOne({ email })
+        : await userModel.findById(userId);
     if (!user) {
         return res.status(404).json({ message: "User not found!" });
     }
@@ -103,6 +110,11 @@ export const loginVerifyOTP = async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
+
+    await accountModel.updateMany(
+        { user: user._id, attempts: { $gt: 0 } },
+        { $set: { attempts: 0 } },
+    );
 
     res.cookie("token", token, getCookieOptions());
     return res.status(200).json({ message: "Login successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
@@ -191,6 +203,59 @@ export const editProfile = async (req, res) => {
         return res.status(200).json({ message: "Profile updated successfully!" });
     } catch (error) {
         console.error("Error updating profile:", error);
+        return res.status(500).json({ message: "Internal server error!" });
+    }
+}
+
+// /api/auth/forgot-password
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required!" });
+    }
+    
+    try {
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        const otp = await generateAndSaveOTP(user.email, "FORGOT_PASSWORD");
+        await sendOTPEmail(user.email, user.name, otp, "Password Reset OTP");
+        
+        return res.status(200).json({ message: "OTP sent to your email! Please verify to reset your password." });
+    } catch (error) {
+        console.error("Error in forgot password:", error);
+        return res.status(500).json({ message: "Internal server error!" });
+    }
+}
+
+// /api/auth/reset-password
+export const resetPassword = async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+        return res.status(400).json({ message: "Email, OTP, and new password are required!" });
+    }
+
+    try {
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        const isValid = await verifyOTP(user.email, otp, "FORGOT_PASSWORD");
+        if (!isValid) {
+            return res.status(400).json({ message: "Invalid or expired OTP!" });
+        }
+
+        user.passwordHash = await bcrypt.hash(newPassword, 12);
+        await user.save();
+        await sendPasswordResetEmail(user.email, user.name);
+        return res.status(200).json({ message: "Password reset successfully!" });
+    } catch (error) {
+        console.error("Error in reset password:", error);
         return res.status(500).json({ message: "Internal server error!" });
     }
 }

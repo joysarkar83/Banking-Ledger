@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, logout, getCurrentUser, editProfile, registerVerifyOTP, loginVerifyOTP } from "../controllers/auth.controller.js";
+import { register, login, logout, getCurrentUser, editProfile, registerVerifyOTP, loginVerifyOTP, forgotPassword, resetPassword } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 
 const authRouter = Router();
@@ -24,5 +24,11 @@ authRouter.put("/edit-profile", verifyToken, editProfile);
 
 // /api/auth/logout
 authRouter.post("/logout", logout);
+
+// /api/auth/forgot-password
+authRouter.post("/forgot-password", forgotPassword);
+
+// /api/auth/reset-password
+authRouter.post("/reset-password", resetPassword);
 
 export default authRouter;

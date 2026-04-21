@@ -7,7 +7,7 @@ import { formatINR } from '../utils/currency'
 import { createIdempotencyKey } from '../utils/idempotency'
 
 const DashboardPage = () => {
-  const { user, isSystemUser } = useAuth()
+  const { user, isSystemUser, logout } = useAuth()
   const navigate = useNavigate()
   const accountsListRef = useRef(null)
 
@@ -50,6 +50,11 @@ const DashboardPage = () => {
     try {
       await work()
     } catch (err) {
+      if (err?.payload?.forceLogout) {
+        await logout()
+        navigate('/login', { replace: true })
+        return
+      }
       setWarning(err?.message || 'Action failed. Please try again.')
     } finally {
       setLoading(false)

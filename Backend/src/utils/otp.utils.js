@@ -5,13 +5,13 @@ export const generateAndSaveOTP = async (email, purpose = "LOGIN") => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const normalizedPurpose = String(purpose).toUpperCase();
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpHash = await bcrypt.hash(otp, 10);
-
+    
     await otpModel.deleteMany({
         email: normalizedEmail,
         purpose: normalizedPurpose,
     });
-
+    
+    const otpHash = await bcrypt.hash(otp, 10);
     await otpModel.create({
         email: normalizedEmail,
         otpHash,

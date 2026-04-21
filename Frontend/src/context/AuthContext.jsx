@@ -80,9 +80,15 @@ export function AuthProvider({ children }) {
   }, [detectSystemUser, fetchCurrentUser])
 
   const logout = useCallback(async () => {
-    await bankingApi.logout()
-    setUser(null)
-    setIsSystemUser(false)
+    try {
+      await bankingApi.logout()
+    } catch {
+      // Even if backend logout fails (e.g., already invalidated token),
+      // clear local auth state so callers can still redirect to /login.
+    } finally {
+      setUser(null)
+      setIsSystemUser(false)
+    }
   }, [])
 
   const value = useMemo(

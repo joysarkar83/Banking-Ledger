@@ -26,7 +26,10 @@ export async function apiRequest(path, options = {}) {
     : { message: await response.text() }
 
   if (!response.ok) {
-    throw new Error(payload?.message || 'Request failed')
+    const error = new Error(payload?.message || 'Request failed')
+    error.status = response.status
+    error.payload = payload
+    throw error
   }
 
   return payload

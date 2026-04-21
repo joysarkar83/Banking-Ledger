@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import ledgerModel from "./ledger.model.js";
 
+export const ACCOUNT_MAX_PIN_ATTEMPTS = 7;
+
 const accountSchema = new mongoose.Schema(
 	{
 		user: {
@@ -13,8 +15,23 @@ const accountSchema = new mongoose.Schema(
 		pin: {
 			type: String,
 			required: [true, "PIN is required!"],
-			match: [/^\d{4}$/, "PIN must be a 4-digit number!"],
+			validate: {
+				validator: function validatePinFormat(value) {
+					if (!this.isModified("pin")) {
+						return true;
+					}
+
+					return /^\d{4}$/.test(String(value));
+				},
+				message: "PIN must be a 4-digit number!",
+			},
 			select: false,
+		},
+		attempts: {
+			type: Number,
+			default: 0,
+			min: 0,
+			max: ACCOUNT_MAX_PIN_ATTEMPTS,
 		},
 		status: {
 			type: String,
