@@ -38,15 +38,6 @@ export const register = async (req, res) => {
 export const registerVerifyOTP = async (req, res) => {
     const { password, name, mobileNo, email, otp } = req.body;
 
-    if (!email || !name || !password || !mobileNo || !otp) {
-        return res.status(400).json({ message: "Email, name, password, mobile number, and OTP are required!" });
-    }
-
-    const existingUser = await userModel.findOne({ $or: [{ email }, { mobileNo }] });
-    if (existingUser) {
-        return res.status(400).json({ message: "Email or mobile number already exists!" });
-    }
-    
     const isValid = await verifyOTP(email, otp, "REGISTER");
     if (!isValid) {
         return res.status(400).json({ message: "Invalid or expired OTP!" });
@@ -96,12 +87,12 @@ export const login = async (req, res) => {
 
 // /api/auth/login-verify-otp
 export const loginVerifyOTP = async (req, res) => {
-    const { userId, otp } = req.body;
-    if (!userId || !otp) {
-        return res.status(400).json({ message: "User ID and OTP are required!" });
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+        return res.status(400).json({ message: "Email and OTP are required!" });
     }
 
-    const user = await userModel.findById(userId);
+    const user = await userModel.findOne({ email });
     if (!user) {
         return res.status(404).json({ message: "User not found!" });
     }
@@ -111,7 +102,7 @@ export const loginVerifyOTP = async (req, res) => {
         return res.status(400).json({ message: "Invalid or expired OTP!" });
     }
 
-    const token = jwt.sign({ userId: userId }, config.JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
 
     res.cookie("token", token, getCookieOptions());
     return res.status(200).json({ message: "Login successful!", user: { email: user.email, name: user.name, mobileNo: user.mobileNo } });
@@ -139,7 +130,7 @@ export const getCurrentUser = async (req, res) => {
     const userId = req.user._id;
 
     try {
-        const user = await userModel.findById(userId).select("-passwordHash");
+        const user = await userModel.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found!" });
         }
@@ -162,13 +153,13 @@ export const editProfile = async (req, res) => {
     try {
         const user = await userModel.findById(userId).select("+passwordHash");
 
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
         const passwordMatch = await bcrypt.compare(oldPassword, user.passwordHash);
         if (!passwordMatch) {
             return res.status(400).json({ message: "Incorrect password!" });
-        }
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found!" });
         }
 
         if (email !== user.email) {
