@@ -22,6 +22,7 @@ const LoginPage = () => {
   const [error, setError] = useState('')
 
   const from = location.state?.from?.pathname || '/dashboard'
+  const loginMessage = location.state?.message || ''
 
   const onSubmit = async (event) => {
     event.preventDefault()
@@ -84,6 +85,20 @@ const LoginPage = () => {
         <p className="muted" style={{ marginBottom: 20 }}>
           {pendingEmail ? 'Enter the OTP sent to your email.' : 'Login to your banking portal.'}
         </p>
+
+        {loginMessage ? (
+          <div
+            className="card"
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              borderColor: 'rgba(255, 193, 7, 0.45)',
+              background: 'rgba(255, 193, 7, 0.08)',
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600, color: 'var(--warning-500)' }}>{loginMessage}</p>
+          </div>
+        ) : null}
 
         <div className="grid" style={{ gap: 12 }}>
           {!pendingEmail ? (

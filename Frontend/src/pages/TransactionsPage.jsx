@@ -91,7 +91,10 @@ const TransactionsPage = () => {
     } catch (err) {
       if (err?.payload?.forceLogout) {
         await logout()
-        navigate('/login', { replace: true })
+        navigate('/login', {
+          replace: true,
+          state: { message: 'You were logged out after too many wrong PIN attempts.' },
+        })
         return
       }
       setWarning(err?.message || 'Unable to load transactions right now.')
